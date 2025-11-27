@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --------------------------------------
+// MODELO DE USUARIO (CORE)
+// --------------------------------------
+model User {
+  id String @id @default(uuid())
+
+  // --- Información Personal ---
+  name     String?
+  lastName String?
+  avatar   String? // URL de la imagen
+  bio      String? // Pequeña biografía (Opcional)
+
+  // --- Contacto y Verificación ---
+  email        String  @unique
+  emailConfirm Boolean @default(false)
+
+  backupEmail        String?
+  backupEmailConfirm Boolean @default(false)
+
+  phone        String?
+  phoneConfirm Boolean @default(false)
+
+  // --- Seguridad ---
+  password String? // Opcional: Puede ser null si solo usa Google/Facebook
+  role     Role    @default(USER) // Vital para permisos (Admin vs User)
+
+  // --- 2FA (Two Factor Auth) ---
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? // La semilla para Google Authenticator
+
+  // --- Preferencias ---
+  country  String? @default("CO")
+  language String? @default("es-CO")
+  theme    String? @default("light") // dark/light mode preference
+
+  // --- Auditoría y Estado ---
+  status          UserStatus @default(ACTIVE)
+  termsAcceptedAt DateTime? // Legal: Cuándo aceptó términos y condiciones
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // --- Relaciones ---
+  sessions       Session[]
+  socialAccounts SocialAccount[]
+  auditLogs      AuditLog[] // Historial de cambios importantes
+
+  @@index([email])
+}
+
+// --------------------------------------
+// GESTIÓN DE SESIONES (DISPOSITIVOS)
+// --------------------------------------
+// Permite ver "Dispositivos conectados" y cerrar sesión remotamente
+model Session {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshToken String @unique // El token hash para renovar acceso
+
+  // --- Metadata del Dispositivo ---
+  userAgent  String? // Ej: "Mozilla/5.0... Chrome/120..."
+  ipAddress  String? // Ej: "192.168.1.1"
+  deviceType String? // Ej: "Mobile", "Desktop" (Se deduce del UserAgent)
+  location   String? // Ej: "Bogotá, CO" (Se deduce de la IP)
+
+  expiresAt    DateTime
+  lastActiveAt DateTime @default(now()) // Para saber cuándo fue la última vez que usó este dispositivo
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+// --------------------------------------
+// CUENTAS SOCIALES (OAUTH)
+// --------------------------------------
+// Permite que un usuario tenga Google Y Facebook vinculados a la misma cuenta
+model SocialAccount {
+  id String @id @default(uuid())
+
+  provider   AuthProvider // GOOGLE, FACEBOOK, GITHUB
+  providerId String // El ID único que devuelve Google/Facebook
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerId]) // No puede haber dos usuarios con el mismo ID de Google
+  @@index([userId])
+}
+
+// --------------------------------------
+// AUDITORÍA (Seguridad Enterprise)
+// --------------------------------------
+// Registro inmutable de acciones críticas
+model AuditLog {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action    String // Ej: "LOGIN", "CHANGE_PASSWORD", "ENABLE_2FA"
+  details   String? // JSON string con detalles extra
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+}
+
+// --------------------------------------
+// ENUMS
+// --------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+  SUPPORT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING_VERIFICATION
+}
+
+enum AuthProvider {
+  GOOGLE
+  FACEBOOK
+  GITHUB
+  MICROSOFT
+}

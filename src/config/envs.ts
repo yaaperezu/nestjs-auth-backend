@@ -13,8 +13,10 @@ const envSchema = z
         // --- Redis (Opcional por ahora si no lo usas directamente en código) ---
         // REDIS_HOST: z.string().default('localhost'),
         // REDIS_PORT: z.coerce.number().default(6379),
+
+        JWT_SECRET: z.string().min(1, 'JWT_SECRET es requerido'),
     })
-    .passthrough(); // Permite otras variables no definidas aquí
+    .loose(); // Permite otras variables no definidas aquí
 
 const envParsed = envSchema.safeParse(process.env);
 

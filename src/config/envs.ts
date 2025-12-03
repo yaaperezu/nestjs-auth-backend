@@ -15,6 +15,7 @@ const envSchema = z
         // REDIS_PORT: z.coerce.number().default(6379),
 
         JWT_SECRET: z.string().min(1, 'JWT_SECRET es requerido'),
+        JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET es requerido'),
     })
     .loose(); // Permite otras variables no definidas aquí
 

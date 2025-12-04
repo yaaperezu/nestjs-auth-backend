@@ -16,7 +16,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) { }
 
-  async register(registerUserDto: RegisterUserDto) {
+  async register(registerUserDto: RegisterUserDto, ipAddress: string, userAgent: string) {
     const { password, email, ...userData } = registerUserDto;
 
     try {
@@ -30,7 +30,7 @@ export class AuthService {
       });
 
       // Creamos la sesión inmediatamente al registrarse
-      const tokens = await this.createSession(user);
+      const tokens = await this.createSession(user, ipAddress, userAgent);
 
       return {
         user: this.excludePassword(user),
@@ -42,7 +42,7 @@ export class AuthService {
     }
   }
 
-  async login(loginUserDto: LoginUserDto) {
+  async login(loginUserDto: LoginUserDto, ipAddress: string, userAgent: string) {
     const { email, password } = loginUserDto;
 
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -52,7 +52,7 @@ export class AuthService {
     if (!isPasswordValid) throw new UnauthorizedException('Credenciales inválidas');
 
     // Creamos la sesión en DB
-    const tokens = await this.createSession(user);
+    const tokens = await this.createSession(user, ipAddress, userAgent);
 
     return {
       user: this.excludePassword(user),
@@ -60,21 +60,38 @@ export class AuthService {
     };
   }
 
-  private async createSession(user: any) {
+  async logout(userId: string) {
+    await this.prisma.session.deleteMany({
+      where: { userId },
+    });
+
+    return { message: 'Sesión cerrada exitosamente en todos los dispositivos' };
+  }
+
+  // Sobrecarga para borrar una sesión específica si recibimos el refreshToken
+  async logoutSpecificSession(refreshToken: string) {
+    await this.prisma.session.delete({
+      where: { refreshToken }
+    });
+    return { message: 'Sesión cerrada correctamente' };
+  }
+
+  private async createSession(user: any, ipAddress: string, userAgent: string) {
     const payload = { sub: user.id, email: user.email, role: user.role };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, { expiresIn: '15m', secret: envs.JWT_SECRET }), // Access Token (Vida corta)
-      this.jwtService.signAsync(payload, { expiresIn: '7d', secret: envs.JWT_REFRESH_SECRET }), // Refresh Token (Vida larga)
+      this.jwtService.signAsync(payload, { expiresIn: '15m', secret: envs.JWT_SECRET }),
+      this.jwtService.signAsync(payload, { expiresIn: '7d', secret: envs.JWT_REFRESH_SECRET }),
     ]);
 
-    // Guardar en la tabla Session
     await this.prisma.session.create({
       data: {
         userId: user.id,
-        refreshToken: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días
-        // Aquí podríamos capturar IP y UserAgent si los pasamos desde el controlador
+        refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        ipAddress,
+        userAgent,
+        deviceType: this.detectDevice(userAgent), // Método auxiliar simple
       },
     });
 
@@ -162,5 +179,11 @@ export class AuthService {
       this.logger.error(`Error refreshing token: ${error}`);
       throw new UnauthorizedException('Token de refresco inválido');
     }
+  }
+
+  private detectDevice(userAgent: string): string {
+    if (/mobile/i.test(userAgent)) return 'Mobile';
+    if (/tablet/i.test(userAgent)) return 'Tablet';
+    return 'Desktop';
   }
 }

@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, Request, Ip, Headers } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -14,25 +14,50 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  register(@Body() registerUserDto: RegisterUserDto) {
-    return this.authService.register(registerUserDto);
+  @ApiOperation({ summary: 'Registrar nuevo usuario y crear sesión' })
+  register(
+    @Body() registerUserDto: RegisterUserDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    // Si estás detrás de Nginx/Cloudflare, asegúrate de configurar 'trust proxy' en main.ts
+    return this.authService.register(registerUserDto, ip, userAgent);
   }
 
   @Public()
   @Post('login')
-  login(@Body() loginUserDto: LoginUserDto) {
-    return this.authService.login(loginUserDto);
+  @ApiOperation({ summary: 'Iniciar sesión y obtener tokens' })
+  login(
+    @Body() loginUserDto: LoginUserDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.authService.login(loginUserDto, ip, userAgent);
   }
 
   @Get('profile')
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener perfil del usuario autenticado' })
   getProfile(@Request() req: any) {
     return req.user;
   }
 
   @Public()
   @Post('refresh')
+  @ApiOperation({ summary: 'Rotar refresh token y obtener nuevo access token' })
   refresh(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refresh(refreshTokenDto);
+  }
+
+  @Post('logout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cerrar sesión (Revocar tokens)' })
+  logout(@Request() req: any, @Body() body: { refreshToken?: string }) {
+    // Opción A: Logout global (Cierra todo) usando el ID del token JWT
+    if (!body.refreshToken) {
+      return this.authService.logout(req.user.id);
+    }
+    // Opción B: Logout específico (Mejor UX)
+    return this.authService.logoutSpecificSession(body.refreshToken);
   }
 }

@@ -30,7 +30,7 @@ model User {
 
   // --- Seguridad ---
   password String? // Opcional: Puede ser null si solo usa Google/Facebook
-  role     Role    @default(USER) // Vital para permisos (Admin vs User)
+  roles    Role[]  @default([USER])
 
   // --- 2FA (Two Factor Auth) ---
   twoFactorEnabled Boolean @default(false)

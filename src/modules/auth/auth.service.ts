@@ -77,7 +77,11 @@ export class AuthService {
   }
 
   private async createSession(user: any, ipAddress: string, userAgent: string) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      roles: user.roles // Ahora es un array ej: ['ADMIN', 'USER']
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { expiresIn: '15m', secret: envs.JWT_SECRET }),
@@ -145,7 +149,11 @@ export class AuthService {
 
       // 4. ROTACIÓN: Generar nuevos tokens
       const user = session.user;
-      const userPayload = { sub: user.id, email: user.email, role: user.role };
+      const userPayload = {
+        sub: user.id,
+        email: user.email,
+        roles: user.roles // <--- Usamos 'roles' (array)
+      };
 
       const [newAccessToken, newRefreshToken] = await Promise.all([
         this.jwtService.signAsync(userPayload, {

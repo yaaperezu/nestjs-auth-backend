@@ -7,6 +7,8 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { Public } from './decorators/is-public.decorator';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { Roles } from './decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -53,11 +55,20 @@ export class AuthController {
   @Post('logout')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar sesión (Revocar tokens)' })
-  // Usa el DTO aquí para que Swagger sepa qué mostrar
   logout(@Request() req: any, @Body() logoutDto: LogoutDto) {
     if (!logoutDto.refreshToken) {
       return this.authService.logout(req.user.id);
     }
     return this.authService.logoutSpecificSession(logoutDto.refreshToken);
+  }
+
+  @Get('admin-only')
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN, Role.SUPPORT)
+  @ApiOperation({ summary: 'Endpoint exclusivo para Administradores' })
+  getAdminData() {
+    return {
+      message: 'Hola Admin, tienes acceso a esta zona restringida 🕵️‍♂️',
+    };
   }
 }

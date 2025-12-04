@@ -6,6 +6,7 @@ import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { Public } from './decorators/is-public.decorator';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LogoutDto } from './dto/logout.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -52,12 +53,11 @@ export class AuthController {
   @Post('logout')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar sesión (Revocar tokens)' })
-  logout(@Request() req: any, @Body() body: { refreshToken?: string }) {
-    // Opción A: Logout global (Cierra todo) usando el ID del token JWT
-    if (!body.refreshToken) {
+  // Usa el DTO aquí para que Swagger sepa qué mostrar
+  logout(@Request() req: any, @Body() logoutDto: LogoutDto) {
+    if (!logoutDto.refreshToken) {
       return this.authService.logout(req.user.id);
     }
-    // Opción B: Logout específico (Mejor UX)
-    return this.authService.logoutSpecificSession(body.refreshToken);
+    return this.authService.logoutSpecificSession(logoutDto.refreshToken);
   }
 }

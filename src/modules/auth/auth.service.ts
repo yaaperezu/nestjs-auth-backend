@@ -70,7 +70,7 @@ export class AuthService {
 
   // Sobrecarga para borrar una sesión específica si recibimos el refreshToken
   async logoutSpecificSession(refreshToken: string) {
-    await this.prisma.session.delete({
+    await this.prisma.session.deleteMany({
       where: { refreshToken }
     });
     return { message: 'Sesión cerrada correctamente' };

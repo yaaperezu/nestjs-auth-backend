@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto } from './dto/login-user.dto';
 import { envs } from 'src/config/envs';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -80,7 +81,8 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      roles: user.roles // Ahora es un array ej: ['ADMIN', 'USER']
+      roles: user.roles,
+      jti: randomUUID(),
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -152,7 +154,8 @@ export class AuthService {
       const userPayload = {
         sub: user.id,
         email: user.email,
-        roles: user.roles // <--- Usamos 'roles' (array)
+        roles: user.roles,
+        ti: randomUUID(),
       };
 
       const [newAccessToken, newRefreshToken] = await Promise.all([
